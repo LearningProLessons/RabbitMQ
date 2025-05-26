@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Producer", "Producer\Producer.csproj", "{DDFC68C1-5003-455A-8AA8-9B0E750D53F8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Consumer", "Consumer\Consumer.csproj", "{B1E77ED2-6D6B-4657-8886-DAC2A0B2E87C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DDFC68C1-5003-455A-8AA8-9B0E750D53F8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DDFC68C1-5003-455A-8AA8-9B0E750D53F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DDFC68C1-5003-455A-8AA8-9B0E750D53F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DDFC68C1-5003-455A-8AA8-9B0E750D53F8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B1E77ED2-6D6B-4657-8886-DAC2A0B2E87C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B1E77ED2-6D6B-4657-8886-DAC2A0B2E87C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B1E77ED2-6D6B-4657-8886-DAC2A0B2E87C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B1E77ED2-6D6B-4657-8886-DAC2A0B2E87C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

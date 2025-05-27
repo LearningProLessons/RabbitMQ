@@ -1,1 +1,1 @@
-﻿await Producer.WorkQueue.Program.RunAsync();
+﻿await Producer.WorkQueue.Program.RunAsync(args);

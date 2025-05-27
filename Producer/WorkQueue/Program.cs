@@ -1,11 +1,16 @@
-using System.Text;
 using RabbitMQ.Client;
+using System.Text;
 
 namespace Producer.WorkQueue;
 
 public class Program
 {
-    public static async Task RunAsync()
+    public static async Task Main(string[] args)
+    {
+        await RunAsync(args);
+    }
+
+    public static async Task RunAsync(string[] args)
     {
         var factory = new ConnectionFactory
         {
@@ -15,35 +20,28 @@ public class Program
             Password = "admin"
         };
 
+ 
         using var connection = await factory.CreateConnectionAsync();
         using var channel = await connection.CreateChannelAsync();
 
-        await channel.QueueDeclareAsync(
-            queue: "work-queue",
-            durable: true,
-            exclusive: false,
-            autoDelete: false,
-            arguments: null);
+        await channel.QueueDeclareAsync(queue: "task_queue", durable: true, exclusive: false,
+            autoDelete: false, arguments: null);
 
+        var message = GetMessage(args);
+        var body = Encoding.UTF8.GetBytes(message);
 
-        for (int i = 1; i <= 10; i++)
+        var properties = new BasicProperties
         {
-            var message = $"Task #{i}";
-            var body = Encoding.UTF8.GetBytes(message);
+            Persistent = true
+        };
 
-            var properties = new BasicProperties();
-            properties.Persistent = true;
+        await channel.BasicPublishAsync(exchange: string.Empty, routingKey: "task_queue", mandatory: true,
+            basicProperties: properties, body: body);
+        Console.WriteLine($" [x] Sent {message}");
 
-
-            await channel.BasicPublishAsync(
-                exchange: "",
-                routingKey: "work-queue",
-                mandatory: false,
-                basicProperties: properties,
-                body: body);
-
-
-            Console.WriteLine($" [x] Sent {message}");
+        static string GetMessage(string[] args)
+        {
+            return ((args.Length > 0) ? string.Join(" ", args) : "Hello World!");
         }
     }
 }

@@ -1,1 +1,1 @@
-﻿await Consumer.WorkQueue.Program.RunAsync();
+﻿await Consumer.PubSub.Program.RunAsync();

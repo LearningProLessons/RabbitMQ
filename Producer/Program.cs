@@ -1,1 +1,1 @@
-﻿await Producer.Routing.Program.RunAsync();
+﻿await Producer.Topics.Program.RunAsync();

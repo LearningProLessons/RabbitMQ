@@ -1,1 +1,1 @@
-﻿await Consumer.Routing.Program.RunAsync();
+﻿await Consumer.Topics.Program.RunAsync();

@@ -1,1 +1,1 @@
-﻿await Producer.PubSub.Program.RunAsync(args);
+﻿await Producer.Routing.Program.RunAsync();

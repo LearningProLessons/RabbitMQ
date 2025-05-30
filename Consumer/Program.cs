@@ -1,1 +1,1 @@
-﻿await Consumer.PubSub.Program.RunAsync();
+﻿await Consumer.Routing.Program.RunAsync();

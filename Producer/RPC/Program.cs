@@ -7,12 +7,10 @@ namespace Producer.RPC;
 
 public class RpcClient : IAsyncDisposable
 {
-    private const string QueueName = "rpc_queue";
+    private const string QueueName = "payment_gateway_queue";
 
     private readonly IConnectionFactory _connectionFactory;
-
-    private readonly ConcurrentDictionary<string, TaskCompletionSource<string>> _callbackMapper
-        = new();
+    private readonly ConcurrentDictionary<string, TaskCompletionSource<string>> _callbackMapper = new();
 
     private IConnection? _connection;
     private IChannel? _channel;
@@ -24,7 +22,6 @@ public class RpcClient : IAsyncDisposable
         {
             HostName = "localhost", Port = 5672, UserName = "admin", Password = "admin"
         };
-        ;
     }
 
     public async Task StartAsync()
@@ -32,23 +29,17 @@ public class RpcClient : IAsyncDisposable
         _connection = await _connectionFactory.CreateConnectionAsync();
         _channel = await _connection.CreateChannelAsync();
 
-        // declare a server-named queue
-        QueueDeclareOk queueDeclareResult = await _channel.QueueDeclareAsync();
-        _replyQueueName = queueDeclareResult.QueueName;
-        var consumer = new AsyncEventingBasicConsumer(_channel);
+        var queue = await _channel.QueueDeclareAsync();
+        _replyQueueName = queue.QueueName;
 
+        var consumer = new AsyncEventingBasicConsumer(_channel);
         consumer.ReceivedAsync += (model, ea) =>
         {
-            string? correlationId = ea.BasicProperties.CorrelationId;
-
-            if (false == string.IsNullOrEmpty(correlationId))
+            var correlationId = ea.BasicProperties.CorrelationId;
+            if (!string.IsNullOrEmpty(correlationId) && _callbackMapper.TryRemove(correlationId, out var tcs))
             {
-                if (_callbackMapper.TryRemove(correlationId, out var tcs))
-                {
-                    var body = ea.Body.ToArray();
-                    var response = Encoding.UTF8.GetString(body);
-                    tcs.TrySetResult(response);
-                }
+                var response = Encoding.UTF8.GetString(ea.Body.ToArray());
+                tcs.TrySetResult(response);
             }
 
             return Task.CompletedTask;
@@ -57,45 +48,33 @@ public class RpcClient : IAsyncDisposable
         await _channel.BasicConsumeAsync(_replyQueueName, true, consumer);
     }
 
-    public async Task<string> CallAsync(string message,
-        CancellationToken cancellationToken = default)
+    public async Task<string> PayAsync(string gateway, int amount, CancellationToken cancellationToken = default)
     {
-        if (_channel is null)
-        {
-            throw new InvalidOperationException();
-        }
+        if (_channel is null) throw new InvalidOperationException();
 
-        string correlationId = Guid.NewGuid().ToString();
+        var correlationId = Guid.NewGuid().ToString();
         var props = new BasicProperties { CorrelationId = correlationId, ReplyTo = _replyQueueName };
 
-        var tcs = new TaskCompletionSource<string>(
-            TaskCreationOptions.RunContinuationsAsynchronously);
+        var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         _callbackMapper.TryAdd(correlationId, tcs);
 
-        var messageBytes = Encoding.UTF8.GetBytes(message);
-        await _channel.BasicPublishAsync(exchange: string.Empty, routingKey: QueueName,
-            mandatory: true, basicProperties: props, body: messageBytes, cancellationToken: cancellationToken);
+        var message = $"{gateway}:{amount}";
+        var body = Encoding.UTF8.GetBytes(message);
 
-        using CancellationTokenRegistration ctr =
-            cancellationToken.Register(() =>
-            {
-                _callbackMapper.TryRemove(correlationId, out _);
-                tcs.SetCanceled(cancellationToken);
-            });
+        await _channel.BasicPublishAsync(string.Empty, QueueName, true, props, body, cancellationToken);
+
+        using var ctr = cancellationToken.Register(() =>
+        {
+            _callbackMapper.TryRemove(correlationId, out _);
+            tcs.SetCanceled(cancellationToken);
+        });
 
         return await tcs.Task;
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_channel is not null)
-        {
-            await _channel.CloseAsync();
-        }
-
-        if (_connection is not null)
-        {
-            await _connection.CloseAsync();
-        }
+        if (_channel is not null) await _channel.CloseAsync();
+        if (_connection is not null) await _connection.CloseAsync();
     }
 }

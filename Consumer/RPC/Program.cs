@@ -2,14 +2,13 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
 
-
 namespace Consumer.RPC;
 
 public class Program
 {
     public static async Task RunAsync()
     {
-        const string QUEUE_NAME = "rpc_queue";
+        const string QUEUE_NAME = "payment_gateway_queue";
 
         var factory = new ConnectionFactory
         {
@@ -24,53 +23,32 @@ public class Program
         await channel.BasicQosAsync(prefetchSize: 0, prefetchCount: 1, global: false);
 
         var consumer = new AsyncEventingBasicConsumer(channel);
-        consumer.ReceivedAsync += async (object sender, BasicDeliverEventArgs ea) =>
+        consumer.ReceivedAsync += async (sender, ea) =>
         {
-            AsyncEventingBasicConsumer cons = (AsyncEventingBasicConsumer)sender;
-            IChannel ch = cons.Channel;
-            string response = string.Empty;
-
-            byte[] body = ea.Body.ToArray();
-            IReadOnlyBasicProperties props = ea.BasicProperties;
+            var ch = ((AsyncEventingBasicConsumer)sender).Channel;
+            var props = ea.BasicProperties;
             var replyProps = new BasicProperties { CorrelationId = props.CorrelationId };
 
-            try
-            {
-                var message = Encoding.UTF8.GetString(body);
-                int n = int.Parse(message);
-                Console.WriteLine($" [.] Fib({message})");
-                response = Fib(n).ToString();
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine($" [.] {e.Message}");
-                response = string.Empty;
-            }
-            finally
-            {
-                var responseBytes = Encoding.UTF8.GetBytes(response);
-                await ch.BasicPublishAsync(exchange: string.Empty, routingKey: props.ReplyTo!,
-                    mandatory: true, basicProperties: replyProps, body: responseBytes);
-                await ch.BasicAckAsync(deliveryTag: ea.DeliveryTag, multiple: false);
-            }
+            var request = Encoding.UTF8.GetString(ea.Body.ToArray());
+            var response = await ProcessPaymentAsync(request);
+
+            var responseBytes = Encoding.UTF8.GetBytes(response);
+            await ch.BasicPublishAsync(string.Empty, props.ReplyTo!, true, replyProps, responseBytes);
+            await ch.BasicAckAsync(ea.DeliveryTag, false);
         };
 
         await channel.BasicConsumeAsync(QUEUE_NAME, false, consumer);
-        Console.WriteLine(" [x] Awaiting RPC requests");
-        Console.WriteLine(" Press [enter] to exit.");
+        Console.WriteLine(" [x] Awaiting payment requests");
         Console.ReadLine();
+    }
 
-        // Assumes only valid positive integer input.
-        // Don't expect this one to work for big numbers,
-        // and it's probably the slowest recursive implementation possible.
-        static int Fib(int n)
-        {
-            if (n is 0 or 1)
-            {
-                return n;
-            }
+    static Task<string> ProcessPaymentAsync(string request)
+    {
+        var parts = request.Split(':');
+        var gateway = parts[0];
+        var amount = parts[1];
 
-            return Fib(n - 1) + Fib(n - 2);
-        }
+        var trackingCode = Guid.NewGuid().ToString("N")[..6];
+        return Task.FromResult($"پرداخت {amount} تومان از طریق {gateway} انجام شد | کد پیگیری: {trackingCode}");
     }
 }

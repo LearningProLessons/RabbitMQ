@@ -1,1 +1,1 @@
-﻿await Consumer.Topics.Program.RunAsync();
+﻿await Consumer.RPC.Program.RunAsync();
